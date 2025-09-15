@@ -1,0 +1,22 @@
+[
+    {
+        "Oxide": "Al2O3",
+        "Element": "Al",
+        "Factor": 0.529
+    },
+    {
+        "Oxide": "K2O",
+        "Element": "K",
+        "Factor": 0.83
+    },
+    {
+        "Oxide": "MgO",
+        "Element": "Mg",
+        "Factor": 0.603
+    },
+    {
+        "Oxide": "SiO2",
+        "Element": "Si",
+        "Factor": 0.467
+    }
+]

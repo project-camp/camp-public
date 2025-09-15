@@ -1,0 +1,46 @@
+name: camp-public
+channels:
+  - conda-forge
+  - r
+dependencies:
+  # System dependencies
+  - gdal>=3.5
+  - proj>=8.0
+  - geos>=3.10
+  - udunits2
+  
+  # R foundation
+  - r-base=4.3
+  - r-essentials
+  
+  # Core packages actually used
+  - r-tidyverse          # Includes dplyr, tidyr, ggplot2, stringr, magrittr
+  - r-sf
+  - r-sp  
+  - r-raster
+  - r-stars
+  - r-gstat
+  - r-spdep
+  - r-automap
+  - r-dbscan
+  - r-leaflet
+  - r-vegan
+  - r-compositions
+  - r-patchwork
+  - r-car           
+  - r-mass          
+  - r-lattice
+  - r-gridextra
+  - r-colorspace
+  - r-viridis
+  - r-classint
+  - r-knitr
+  - r-nbclust
+  - r-readxl
+  - r-jsonlite
+  - r-htmlwidgets
+  
+  # Jupyter support
+  - jupyter
+  - r-irkernel
+  - r-repr
