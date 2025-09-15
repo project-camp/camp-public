@@ -1,4 +1,4 @@
-<img src="assets/camp-logo.png" alt="CAMP Logo" width="40" style="vertical-align: middle;"> <span style="font-size: 2em; font-weight: bold;">– (Re)Constructing the Archaeology of Mobile Pastoralism</span>
+<img src="assets/camp-logo.png" alt="CAMP Logo" width="20" style="vertical-align: middle;"> <span style="font-size: 3em; font-weight: bold;">– (Re)Constructing the Archaeology of Mobile Pastoralism</span>
 
 This project implements a complete analytical framework for portable X-ray fluorescence (pXRF) geochemical data from ethno-archaeological sites, specifically focused on understanding spatial patterns of human activity areas. The workflow integrates compositional data analysis with advanced geostatistical modeling techniques to process, analyze, and interpret geospatial geochemical datasets.
 
