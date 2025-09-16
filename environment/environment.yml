@@ -2,6 +2,7 @@ name: camp-public
 channels:
   - conda-forge
   - r
+  - bioconda
 dependencies:
   # System dependencies
   - gdal>=3.5
@@ -39,6 +40,10 @@ dependencies:
   - r-readxl
   - r-jsonlite
   - r-htmlwidgets
+  - r-kableExtra
+  - r-mvn
+  - r-ggcorrplot
+  - r-ggrepel
   
   # Jupyter support
   - jupyter

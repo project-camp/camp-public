@@ -49,9 +49,6 @@
 #' @export
 
 match_points_with_serials <- function(xlsx_path, geojson_path) {
-  # Combines Excel data with GeoJSON spatial points by matching serial numbers. 
-  # Reports matching statistics.
-
   # Input validation
   if (!file.exists(xlsx_path)) {
     stop("Excel file not found: ", xlsx_path)
@@ -63,7 +60,7 @@ match_points_with_serials <- function(xlsx_path, geojson_path) {
   # Read Excel data
   xlsx_data <- read_excel(xlsx_path) %>%
     mutate(Serial = as.character(Serial))
-
+  
   # Check for duplicates in Excel data
   duplicate_serials_excel <- xlsx_data %>%
     group_by(Serial) %>%
@@ -78,21 +75,33 @@ match_points_with_serials <- function(xlsx_path, geojson_path) {
   }
   
   # Read and process spatial points
-    points_sf <- st_read(geojson_path, quiet = TRUE)
+  points_sf <- st_read(geojson_path, quiet = TRUE)
   
-  # Process spatial points
+  # Process spatial points - extract serial number from field_1
   points_coords <- points_sf %>%
-    mutate(Name = gsub("\\s+", " ", Name)) %>%
-    mutate(Serial = sub(".*?(\\d{4})$", "\\1", Name)) %>%
-    mutate(Serial = as.character(Serial)) %>%
-    st_drop_geometry() %>%  # Convert to regular dataframe
-    dplyr::select(Serial,   # Now we can use select safely
-    Easting,
-    Northing,
-    Longitude,
-    Latitude,
-    Elevation)
-
+    mutate(field_1 = gsub("\\s+", " ", field_1)) %>%  
+    mutate(Serial = sub(".*SAMP_(\\d+)$", "\\1", field_1)) %>%  
+    mutate(Serial = as.character(Serial))
+  
+  # Extract coordinates and add them as columns
+  coords_matrix <- st_coordinates(points_coords)
+  
+  points_coords <- points_coords %>%
+    mutate(
+      Easting = field_2,    
+      Northing = field_3,   
+      Elevation = field_4,
+      Longitude = coords_matrix[,1],  # X coordinate from geometry
+      Latitude = coords_matrix[,2]    # Y coordinate from geometry
+    ) %>%
+    st_drop_geometry() %>%  
+    dplyr::select(Serial, Easting, Northing, Longitude, Latitude, Elevation)
+  
+  # Debug: Check if columns were created properly
+  cat("Columns in points_coords:\n")
+  print(names(points_coords))
+  cat("\n")
+  
   # Check for duplicates in GeoJSON data
   duplicate_serials_geojson <- points_coords %>%
     group_by(Serial) %>%
@@ -105,11 +114,16 @@ match_points_with_serials <- function(xlsx_path, geojson_path) {
     cat("No duplicate serials found in GeoJSON data.\n")
     cat("\n")
   }
-
+  
   # Join data
   result <- xlsx_data %>%
     left_join(points_coords, by = "Serial")
-
+  
+  # Debug: Check if columns exist in result
+  cat("Columns in final result:\n")
+  print(names(result))
+  cat("\n")
+  
   # Report matching statistics
   n_matched <- sum(!is.na(result$Easting))
   cat("Number of records in Excel data: ", nrow(xlsx_data), "\n")

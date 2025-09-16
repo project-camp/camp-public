@@ -7,7 +7,7 @@ required_packages <- c(
   
   # Spatial packages  
   "sf", "sp", "raster", "stars", "gstat", "spdep", "automap", 
-  "dbscan", "gridExtra", "lattice",
+  "dbscan", "gridExtra", "lattice", "ggrepel",
 
   # Visualization
   "colorspace", "viridis", "patchwork", "leaflet", "classInt", "knitr",
@@ -16,10 +16,10 @@ required_packages <- c(
   "readxl", "jsonlite", "htmlwidgets", "IRdisplay",
   
   # Statistics
-  "car", "MASS", "vegan", "NbClust", "biotools",  # Removed MVN
+  "car", "MASS", "vegan", "NbClust", "biotools", "MVN",
   
   # Compositional data
-  "compositions", "zCompositions", "gmGeostats"
+  "compositions", "zCompositions", "gmGeostats", "ggcorrplot"
 )
 
 # Function to check and load packages (no auto-installation)
