@@ -6,7 +6,7 @@
 
 <div align="center">
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Conda Env](https://img.shields.io/badge/conda%20env-brightgreen.svg)](./environment/environment.yml)
 [![Project Status](https://img.shields.io/badge/status-active-brightgreen.svg)](https://github.com/project-camp/camp-public)
 
@@ -75,13 +75,13 @@ Visit the Miniforge page and download for all operating systems: [Miniforge](htt
 **2. Clone the repository:**
 
    ```bash
-   git clone [https://github.com/project-camp/camp-public.git](https://github.com/project-camp/camp-public.git)
+   git clone https://github.com/project-camp/camp-public.git
    cd camp-public
    ```
 **3. Create and activate the Conda environment:**
 
    ```bash
-   conda env create -f ./environment/environment.yml
+   mamba env create -f ./environment/environment.yml
    conda activate camp-public
    ```
 
@@ -95,7 +95,7 @@ Rscript ./environment/install_cran_packages.r
 
 ## 📜 License
 
-Copyright 2025 UPF, all rights reserved.
+This project is licensed under the Apache License, Version 2.0. See the  file for the full license text.
 
 ---
 
