@@ -70,33 +70,18 @@ To set up and use this project, follow these steps:
 
 ---
 
-## 🙏 Acknowledgments
-
-Excellent idea! Adding the official logos makes the acknowledgment much more professional and visually appealing.
-
-I have updated the README.md to include the image you provided in the "Acknowledgments" section. I've centered it and set a reasonable width for a clean look.
-
-Important: For the image to appear correctly, you will need to:
-
-Create a folder named assets in the main directory of your project (if it doesn't already exist).
-
-Save the image you uploaded into that assets folder with the filename ERC_EU_funding_logo.png (or a similar descriptive name). I've used this new name in the code below.
-
-Here is the complete, updated README.md:
-
-2. Create and activate the Conda environment:
-The required packages are listed in the environment.yml file.
-
-## 🙏 Acknowledgments
-
-<div align="center">
-<img src="assets/erc_acknowledgements.png" alt="Funded by the European Union and the European Research Council" width="400">
-</div>
-
-This work is supported by ERC grant (CAMP-CoG, n. 101088842). Views and opinions expressed are however those of the author only and do not necessarily reflect those of the European Union or the European Research Council. Neither the European Union nor the granting authority can be held responsible for them.
-
----
-
 ## 📜 License
 
 Copyright 2025 UPF, all rights reserved.
+
+---
+
+## 🙏 Acknowledgments
+
+This work is supported by ERC grant (CAMP-CoG, n. 101088842). Views and opinions expressed are however those of the author only and do not necessarily reflect those of the European Union or the European Research Council. Neither the European Union nor the granting authority can be held responsible for them.
+
+<div align="center">
+<img src="assets/ERC_EU_funding_logo.png" alt="Funded by the European Union and the European Research Council" width="150">
+</div>
+
+
