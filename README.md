@@ -7,7 +7,7 @@
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Conda](https://img.shields.io/conda/v/conda-forge/gdal?label=conda%20env)](./environment/environment.yml)
+[![Conda Env](https://img.shields.io/badge/conda%20env-brightgreen.svg)](./environment/environment.yml)
 [![Project Status](https://img.shields.io/badge/status-active-brightgreen.svg)](https://github.com/project-camp/camp-public)
 
 </div>
@@ -80,9 +80,6 @@ Copyright 2025 UPF, all rights reserved.
 
 This work is supported by ERC grant (CAMP-CoG, n. 101088842). Views and opinions expressed are however those of the author only and do not necessarily reflect those of the European Union or the European Research Council. Neither the European Union nor the granting authority can be held responsible for them.
 
-
 <div align="center">
 <img src="assets/erc_acknowledgements.png" alt="Funded by the European Union and the European Research Council" width="150">
 </div>
-
-
