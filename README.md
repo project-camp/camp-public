@@ -59,9 +59,8 @@ This guide provides comprehensive instructions for setting up the project's comp
 Visit the Miniforge page and download for all operating systems: [Miniforge](https://github.com/conda-forge/miniforge/releases/latest)
 
 - Windows: 
-   ``` 
    Download the [Miniforge3-Windows-x86_64.exe](https://github.com/conda-forge/miniforge/releases/download/25.3.1-0/Miniforge3-25.3.1-0-Windows-x86_64.exe)
-   ```
+
 - macOS:
    ``` 
    curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
