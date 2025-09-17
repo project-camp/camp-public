@@ -53,20 +53,41 @@ The analytical workflow is divided into four sequential scripts:
 
 ## 🚀 Getting Started
 
-To set up and use this project, follow these steps:
+This guide provides comprehensive instructions for setting up the project's computational environment.
 
-**1. Clone the repository:**
+**1. Download and Install Miniforge:**
+Visit the Miniforge page and download for all operating systems: [Miniforge](https://github.com/conda-forge/miniforge/releases/latest)
+
+- Windows: Use the Miniforge3-Windows-x86_64.exe
+- macOS: Download either:
+   ``` 
+   curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+   bash Miniforge3-$(uname)-$(uname -m).sh
+   ``` 
+- Linux: 
+   ``` 
+   curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+   bash Miniforge3-$(uname)-$(uname -m).sh
+   ```
+
+**2. Clone the repository:**
 
    ```bash
    git clone [https://github.com/project-camp/camp-public.git](https://github.com/project-camp/camp-public.git)
    cd camp-public
    ```
-**2. Create and activate the Conda environment:**
+**3. Create and activate the Conda environment:**
 
    ```bash
    conda env create -f ./environment/environment.yml
    conda activate camp-public
    ```
+
+**4. Install CRAN packages:**
+
+```
+Rscript ./environment/install_cran_packages.r
+```
 
 ---
 
