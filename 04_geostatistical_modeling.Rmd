@@ -43,7 +43,7 @@ dataset$Area <- Area
 create_quick_map(dataset, structures, group_data = "Area")
 
 dataset_spdf$Area <- Area
-dataset_spdf <- dataset_spdf[dataset_spdf$Area == 1, ]
+dataset_spdf <- dataset_spdf[dataset_spdf$Area == 2, ]
 ```
 
 
@@ -76,17 +76,28 @@ site_diag <- site_diagonal_from_spdf(spdf_ilr)
 
 
 ```R
-source("./utils/functions/geostatistical_workflow.R")
+source("./utils/functions/geostatistical_analysis.R")
+source("./utils/functions/validate_geostatistical_predictions.R")
 ```
 
 
 ```R
-results_ilr_omni <- geostatistical_workflow(spdf_ilr, "ILR_Omnidirectional", lag_dist, site_diag, directional = FALSE)
+results_ilr_omni <- geostatistical_analysis(spdf_ilr, "ILR_Omnidirectional", lag_dist, site_diag, directional = FALSE)
 ```
 
 
 ```R
-results_ilr_dir <- geostatistical_workflow(spdf_ilr, "ILR_Directional", lag_dist, site_diag, directional = FALSE)
+validate_predictions(spdf_ilr, results_ilr_omni$ck, results_ilr_omni$g)
+```
+
+
+```R
+results_ilr_dir <- geostatistical_analysis(spdf_ilr, "ILR_Directional", lag_dist, site_diag, directional = FALSE)
+```
+
+
+```R
+validate_predictions(spdf_ilr, results_ilr_dir$ck, results_ilr_dir$g)
 ```
 
 
@@ -106,10 +117,15 @@ spdf_maf <- SpatialPointsDataFrame(coords = dataset_spdf[, c("Easting", "Northin
                                   data = as.data.frame(maf_dataset),
                                   proj4string = CRS("+proj=utm +zone=37 +north +datum=WGS84"))
 
-results_maf_omni <- geostatistical_workflow(spdf_maf, "MAF_Omnidirectional", lag_dist, site_diag,
+results_maf_omni <- geostatistical_analysis(spdf_maf, "MAF_Omnidirectional", lag_dist, site_diag,
                                            directional = FALSE, maf_result = maf_result, 
                                            resolution = 2)
 
+```
+
+
+```R
+validate_predictions(spdf_maf, results_maf_omni$ck, results_maf_omni$g)
 ```
 
 
@@ -125,10 +141,15 @@ spdf_maf2 <- SpatialPointsDataFrame(coords = dataset_spdf[, c("Easting", "Northi
                                    data = as.data.frame(maf_dataset2),
                                    proj4string = CRS("+proj=utm +zone=37 +north +datum=WGS84"))
 
-results_maf_dir <- geostatistical_workflow(spdf_maf2, "MAF_Directional", lag_dist, site_diag,
+results_maf_dir <- geostatistical_analysis(spdf_maf2, "MAF_Directional", lag_dist, site_diag,
                                           directional = TRUE, maf_result = maf_result2, 
                                           resolution = 2)
 
+```
+
+
+```R
+validate_predictions(spdf_maf2, results_maf_dir$ck, results_maf_dir$g)
 ```
 
 

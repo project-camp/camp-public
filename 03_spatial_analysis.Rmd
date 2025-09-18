@@ -38,6 +38,7 @@ dbscan_result <- dbscan(dataset_spdf[, c("Easting", "Northing")],
 
 Area <- factor(dbscan_result$cluster)
 dataset$Area <- Area 
+
 create_quick_map(dataset, structures, group_data = "Area")
 
 ```
@@ -45,6 +46,7 @@ create_quick_map(dataset, structures, group_data = "Area")
 
 ```R
 dataset_spdf$Area <- Area 
+dataset_spdf <- dataset_spdf[dataset_spdf$Area == 2, ]
 
 # Create SpatialPointsDataFrames (compositional, ilr, clr)
 spdf_comp <- SpatialPointsDataFrame(coords = dataset_spdf[, c("Easting", "Northing")], 
