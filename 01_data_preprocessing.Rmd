@@ -1,0 +1,362 @@
+```R
+set.seed(999)
+options(scipen = 9)
+options(warn = -1) 
+source("./environment/libraries.R")
+knitr::opts_chunk$set(fig.height = 12, fig.width = 9, fig.dpi = 300)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+
+```R
+name <- "Kenya_E1"
+data_path <- "./data" # Define where input data are stored
+processed_data_path <- "./test"
+
+filepath <- file.path(data_path, paste0(name, "_XRF_Results.xlsx"))
+samples_geojson_path <- file.path(data_path, paste0(name, "_samples.geojson"))
+structures_geojson_path <- file.path(data_path, paste0(name, "_topo_lines.geojson"))
+```
+
+
+```R
+source("./utils/functions/match_points_with_serials.R")
+source("./utils/functions/create_quick_map.R")
+source("./utils/functions/create_html_map.R")
+
+raw_dataset <- match_points_with_serials(filepath, samples_geojson_path)
+dataset <- raw_dataset %>%
+  dplyr::filter(!is.na(Longitude.y),    
+                !is.na(Latitude.y), 
+                !is.na(Easting), 
+                !is.na(Northing)) %>%
+  dplyr::rename(
+    Longitude = Longitude.y,    
+    Latitude = Latitude.y
+  ) %>%
+  dplyr::select(-c(Longitude.x, Latitude.x))
+
+dataset <- dataset %>%
+  dplyr::mutate(
+    Longitude = as.numeric(Longitude),
+    Latitude = as.numeric(Latitude),
+    Easting = as.numeric(Easting),
+    Northing = as.numeric(Northing),
+    Elevation = as.numeric(Elevation)  
+  )
+
+dataset <- dataset %>% 
+dplyr::select("Serial", "Type", # Includes Serial and Type columns
+              "Longitude", "Latitude", "Easting", "Northing", "Elevation", # Spatial information
+              "MgO":"U Err") # Elemental information
+
+head(dataset)
+structures <- st_read(structures_geojson_path, quiet = TRUE)
+create_quick_map(dataset, structures)
+```
+
+
+```R
+elements_all <- setdiff(names(dataset)[grep("^[A-Z][a-z]?$|^[A-Z][a-z]?[0-9]*O[0-9]*$", names(dataset))], c("X", "Y"))
+
+selected_data <- dataset %>% 
+  dplyr::select(dplyr::any_of(elements_all)) %>%
+  dplyr::mutate(dplyr::across(dplyr::everything(), as.numeric)) %>%
+  dplyr::mutate(dplyr::across(dplyr::everything(), ~replace(., is.na(.), 0)))
+
+data_long <- selected_data %>%
+  tidyr::pivot_longer(dplyr::everything(), 
+                     names_to = "Element", 
+                     values_to = "Value")
+
+ggplot(data_long, aes(x = Element, y = Value)) +
+  geom_violin(fill = "lightblue", alpha = 0.5) +
+  geom_boxplot(width = 0.2, fill = "white", alpha = 0.5) +
+  theme_bw() +
+  coord_flip() +
+  labs(title = "Combined Violin and Box Plot of Element Concentrations",
+       x = "Element",
+       y = "Concentration") +
+  scale_y_log10() 
+
+ggplot(data_long, aes(x = Value)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "black") +
+  facet_wrap(~Element, scales = "free") +
+  theme_bw() +
+  labs(title = "Histograms of Element Concentrations",
+       x = "Concentration",
+       y = "Count")
+
+ggplot(data_long, aes(x = Value)) +
+  geom_density(fill = "steelblue", alpha = 0.5) +
+  facet_wrap(~Element, scales = "free") +
+  theme_bw() +
+  labs(title = "Density Distribution of Element Concentrations",
+       x = "Concentration",
+       y = "Density")
+```
+
+
+```R
+element <- "S"
+data_single_element <- data_long %>% dplyr::filter(Element == element) 
+
+ggplot(data_single_element, aes(x = Element, y = Value)) +
+  geom_violin(fill = "lightblue", alpha = 0.5) +
+  geom_boxplot(width = 0.2, fill = "white", alpha = 0.5) +
+  theme_bw() +
+  coord_flip() +
+  labs(title = paste("Combined Violin and Box Plot of", 
+                     data_single_element$Element[1], 
+                     "Concentration"),
+       x = "Element",
+       y = "Concentration")
+
+ggplot(data_single_element, aes(x = Value)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "black") +
+  theme_bw() +
+  labs(title = paste("Combined Violin and Box Plot of", 
+                     data_single_element$Element[1], 
+                     "Concentration"),
+       x = "Concentration",
+       y = "Count")
+
+ggplot(data_single_element, aes(x = Value)) +
+  geom_density(fill = "steelblue", alpha = 0.5) +
+  theme_bw() +
+  labs(title = paste("Combined Violin and Box Plot of", 
+                     data_single_element$Element[1], 
+                     "Concentration"),
+       x = "Concentration",
+       y = "Density")
+
+```
+
+
+```R
+source("./utils/functions/below_lod_correction.R")
+
+lod_values <- fromJSON("./utils/LOD_values.json")
+# Substitute values below LOD with NA (both entries with "<LOD" and other values below LOD)
+dataset <- below_lod_correction(dataset, lod_values, method = "oxide")
+
+```
+
+
+```R
+source("./utils/functions/na_check.R")
+source("./utils/functions/range_analysis_check.R")
+source("./utils/functions/element_error_check.R")
+
+cat("=== RUNNING NA CHECK ===")
+head(na_check(dataset))
+
+cat("=== RUNNING RANGE ANALYSIS CHECK ===")
+analysis_ranges <- fromJSON("./utils/analysis_ranges.json")
+head(range_analysis_check(dataset, analysis_ranges, method = "oxide"))
+
+cat("=== RUNNING ELEMENT ERROR CHECK ===")
+head(element_error_check(dataset))
+
+```
+
+
+```R
+source("./utils/functions/na_filter.R")
+source("./utils/functions/range_analysis_filter.R")
+source("./utils/functions/element_error_filter.R")
+
+
+dataset <- na_filter(dataset, threshold = 100) 
+dataset <- range_analysis_filter(dataset, analysis_ranges, method = "oxide", threshold = 20) 
+dataset <- element_error_filter(dataset, threshold = 20) 
+
+elements_to_remove <- c()  # Define columns to remove (e.g., c("Y", "Zr")) or leave empty
+dataset <- dataset %>%
+  dplyr::select(if (length(elements_to_remove) > 0) -all_of(elements_to_remove) 
+                else everything())
+
+cat("=== RUNNING NA CHECK ===")
+head(na_check(dataset))
+
+cat("=== RUNNING RANGE ANALYSIS CHECK ===")
+head(range_analysis_check(dataset, analysis_ranges, method = "oxide"))
+
+cat("=== RUNNING ELEMENT ERROR CHECK ===")
+head(element_error_check(dataset))
+
+```
+
+
+```R
+elements_all <- setdiff(names(dataset)[grep("^[A-Z][a-z]?$|^[A-Z][a-z]?[0-9]*O[0-9]*$", names(dataset))], c("X", "Y"))
+selected_data <- dataset %>% 
+  dplyr::select(dplyr::any_of(elements_all)) %>%
+  dplyr::mutate(dplyr::across(dplyr::everything(), as.numeric)) %>%
+  dplyr::mutate(dplyr::across(dplyr::everything(), ~replace(., is.na(.), 0)))
+data_long <- selected_data %>%
+  tidyr::pivot_longer(dplyr::everything(), 
+                     names_to = "Element", 
+                     values_to = "Value")
+
+ggplot(data_long, aes(x = Element, y = Value)) +
+  geom_violin(fill = "lightblue", alpha = 0.5) +
+  geom_boxplot(width = 0.2, fill = "white", alpha = 0.5) +
+  theme_bw() +
+  coord_flip() +
+  labs(title = "Combined Violin and Box Plot of Element Concentrations",
+       x = "Element",
+       y = "Concentration") +
+  scale_y_log10()  
+
+ggplot(data_long, aes(x = Value)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "black") +
+  facet_wrap(~Element, scales = "free") +
+  theme_bw() +
+  labs(title = "Histograms of Element Concentrations",
+       x = "Concentration",
+       y = "Count")
+
+ggplot(data_long, aes(x = Value)) +
+  geom_density(fill = "steelblue", alpha = 0.5) +
+  facet_wrap(~Element, scales = "free") +
+  theme_bw() +
+  labs(title = "Density Distribution of Element Concentrations",
+       x = "Concentration",
+       y = "Density")
+
+```
+
+
+```R
+dataset_c <- dataset %>%
+  dplyr::select(-c(Serial, Type, Longitude, Latitude, Easting, Northing, Elevation)) %>% # Remove non-chemical data
+  dplyr::select(-matches(" Err$")) # Remove error columns
+  
+par(bg = "white")
+if (any(is.na(dataset_c))) {
+  zCompositions::zPatterns(X = dataset_c, 
+                          label = NA, 
+                          bar.labels = TRUE)
+} else {
+  message("No missing values found in the dataset.")
+}
+```
+
+
+```R
+library(kableExtra)
+dataset_c_imputed <- data.frame(Serial = dataset$Serial, is_imputed = apply(dataset_c, 1, function(x) any(is.na(x))))
+dataset_c_isimputed <- cbind(dataset[1:6], # Add non-chemical columns (excluding Elevation)
+                             dataset_c, # Add compositional dataset
+                             "is_imputed" = dataset_c_imputed$is_imputed) # Add is_imputed column
+
+invisible(dataset_c_isimputed %>%
+  dplyr::filter(is_imputed == TRUE) %>%
+  dplyr::select(-c(Longitude, Latitude, Easting, Northing, is_imputed)) %>%
+  dplyr::relocate(Type, .after = last_col())  %>%
+  kable(format = "html") %>%
+  kableExtra::kable_styling(full_width = FALSE) %>% 
+  kableExtra::scroll_box(width = "100%", height = "400px"))
+
+create_quick_map(dataset_c_isimputed, structures, group_data = "is_imputed")
+```
+
+
+```R
+# Create data frame with LOD values (oxide method)
+lod_values <- data.frame(t(unlist(fromJSON("./utils/LOD_values.json")$oxide_method))) 
+lod_values$SiO2 <- 0.01 # Set SiO2 LOD to 0.01 to avoid issues.
+lod_dataset_c <- lod_values[, intersect(colnames(lod_values), colnames(dataset_c))] / 10000 
+
+if (any(is.na(dataset_c))) {
+  message("Missing values found in the dataset. Pre-processing with multRepl for highly missing columns...")
+
+  na_proportion <- colSums(is.na(dataset_c)) / nrow(dataset_c)
+  cols_to_multrepl <- names(na_proportion[na_proportion > 0.8]) # Identify columns with >80% NA
+
+  if (length(cols_to_multrepl) > 0) {
+    message(paste("Applying multRepl to columns with >80% NA:", paste(cols_to_multrepl, collapse = ", ")))
+    dataset_c_preprocessed <- cbind(dataset_c, "Res" = 100 - rowSums(dataset_c, na.rm = TRUE)) 
+    for (col_name in cols_to_multrepl) {
+      dataset_c_preprocessed[, col_name][is.na(dataset_c_preprocessed[, col_name])] <- 0.65 * lod_dataset_c[, col_name]
+    }
+    
+    for (i in 1:nrow(dataset_c_preprocessed)) { # Normalize rows to sum to 100
+      row <- dataset_c_preprocessed[i, ]
+      row_sum <- sum(row, na.rm = TRUE)
+      if (row_sum > 0) {
+        dataset_c_preprocessed[i, ] <- row * (100 / row_sum)
+      } else {
+        warning(paste("Row", i, "has sum 0 after replacement. Skipping normalization."))
+      }
+    }
+    
+    dataset_c <- dataset_c_preprocessed[, colnames(dataset_c), drop = FALSE]
+  } else {
+    message("No columns found with >80% NA. Skipping multRepl.")
+  }
+
+  if (any(is.na(dataset_c))) {
+    message("Remaining missing values found. Proceeding with lrEM...")
+    dataset_c <- zCompositions::lrEM(dataset_c,
+                                     label = NA,
+                                     dl = lod_dataset_c, 
+                                     rob = TRUE) 
+  } else {
+    message("No remaining missing values. Skipping lrEM.")
+  }
+
+} else {
+  message("No missing values found in the dataset. Skipping multRepl and lrEM.")
+}
+
+```
+
+
+```R
+source("./utils/functions/oxide_to_element_transformation.R")
+oxide_factors <- fromJSON("./utils/oxide_factors.json") 
+dataset_c <- oxide_to_element_transformation(dataset_c, oxide_factors, convert_errors = FALSE)
+str(dataset_c)
+```
+
+
+```R
+source("./utils/functions/mahalanobis_outliers.R")
+# Perform Mahalanobis distance-based outlier detection
+dataset_c_outliers <- mahalanobis_outliers(ilr(dataset_c, v = ilrBase(dataset_c, method = "balanced")), 
+                                              alpha = 0.975, 
+                                              plot = TRUE) 
+```
+
+
+```R
+dataset_c_isoutlier <- cbind(dataset[1:6], # Add non-chemical columns (excluding Elevation)
+                            "Imputed" = dataset_c_imputed$is_imputed, 
+                             dataset_c,
+                             "is_outlier" = dataset_c_outliers$is_outlier) 
+
+invisible(dataset_c_isoutlier %>%
+  dplyr::filter(is_outlier == TRUE) %>%
+  dplyr::select(-c(Longitude, Latitude, Easting, Northing, is_outlier)) %>%
+  dplyr::relocate(Type, .after = last_col()) %>%
+  kable(format = "html") %>%
+  kable_styling(full_width = FALSE) %>%
+  scroll_box(width = "100%", height = "400px"))
+
+create_quick_map(dataset_c_isoutlier, structures, group_data = "is_outlier")
+```
+
+
+```R
+dataset_final <- dplyr::bind_cols(
+    dataset %>% dplyr::select(Serial, Type, Longitude, Latitude, Easting, Northing),
+    dataset_c)
+
+outliers_to_remove <- c() # Include outliers to remove
+dataset <- dataset %>% 
+    dplyr::filter(!Serial %in% outliers_to_remove)
+
+write.csv(dataset_final, file.path(processed_data_path, paste0(name, "_processed.csv")), row.names = FALSE)
+```
