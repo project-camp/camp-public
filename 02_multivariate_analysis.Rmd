@@ -1,0 +1,166 @@
+```R
+set.seed(999)
+options(scipen = 9)
+options(warn = -1)
+Sys.setlocale("LC_ALL", "en_US.UTF-8")
+source("./environment/libraries.R")
+knitr::opts_chunk$set(fig.height = 12, fig.width = 9, fig.dpi = 300)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+
+```R
+name <- "Kenya_E1"
+dataset <- read.csv(paste0("./test/", name, "_processed.csv"))
+dataset_c <- data.frame(dataset[7:ncol(dataset)], row.names = dataset$Serial)
+head(dataset_c)
+structures_geojson_path <- file.path("./data/", paste0(name, "_topo_lines.geojson"))
+structures <- st_read(structures_geojson_path, quiet = TRUE)
+```
+
+
+```R
+dataset_c_closed <- cbind(dataset_c, "Res" = 100 - rowSums(dataset_c)) # Create an acomp object
+dataset_acomp <- acomp(dataset_c_closed) 
+descstats <- compositions::summary.acomp(dataset_acomp)
+descstats$totvar <- sum(descstats$variation) / (2 * ncol(dataset_acomp))
+cat("Compositional centre (closed to 1)")
+descstats$mean
+cat("Mean pair-wise element ratios")
+descstats$mean.ratio
+cat("Variation matrix")
+descstats$variation
+cat("Total variation")
+descstats$totvar
+```
+
+
+```R
+par(bg = "white")
+par(mar = c(4, 4, 1, 1)) 
+
+library(energy)
+
+# Evaluate multivariate normality on the ilr-transformed dataset using the Energy test
+dataset_ilr_mvn <- list()
+energy_test <- mvnorm.etest(as.matrix(ilr(dataset_acomp)), R = 199)
+dataset_ilr_mvn$multivariateNormality <- data.frame(
+  Test = "Energy",
+  Statistic = energy_test$statistic,
+  p.value = energy_test$p.value,
+  Result = ifelse(energy_test$p.value > 0.05, "YES", "NO")
+)
+dataset_ilr_mvn$multivariateNormality
+
+# Evaluate univariate normality (of each component) on the clr-transformed dataset using Shapiro-Wilk test
+dataset_clr_mvn <- list()
+clr_data <- clr(dataset_acomp)
+univariate_results <- data.frame(
+  Variable = colnames(clr_data),
+  Statistic = numeric(ncol(clr_data)),
+  p.value = numeric(ncol(clr_data)),
+  Normality = character(ncol(clr_data)),
+  stringsAsFactors = FALSE
+)
+
+for (i in 1:ncol(clr_data)) {
+  sw_test <- shapiro.test(clr_data[, i])
+  univariate_results$Statistic[i] <- sw_test$statistic
+  univariate_results$p.value[i] <- sw_test$p.value
+  univariate_results$Normality[i] <- ifelse(sw_test$p.value > 0.05, "YES", "NO")
+}
+
+dataset_clr_mvn$univariateNormality <- univariate_results
+dataset_clr_mvn$univariateNormality
+
+qqnorm(dataset_acomp) 
+```
+
+
+```R
+Rs <- compositions::cor(dataset_c, method = "spearman")
+colnames(Rs) <- colnames(dataset_c) 
+rownames(Rs) <- colnames(dataset_c)
+
+ggcorrplot(Rs,
+           method = "square",
+           lab = TRUE,       
+           lab_size = 5,     
+           outline.color = "black",  
+           type = "lower",
+           ggtheme = theme_minimal())
+```
+
+
+```R
+pca_result <- prcomp(clr(dataset_acomp)) # Perform PCA on CLR-transformed data
+summary(pca_result)
+cat("Variable contribution to each component")
+pca_result$rotation
+```
+
+
+```R
+source("./utils/functions/quick_pca_screeplot.R")
+quick_pca_screeplot(pca_result)
+```
+
+
+```R
+source("./utils/functions/quick_pca_biplot.R")
+quick_pca_biplot(pca_result, x = "PC1", y = "PC2", arrow_scale_factor = "auto", 
+                 add_labels = FALSE)
+
+```
+
+
+```R
+par(bg = "white", mfrow = c(1, 2))
+options(repr.plot.width = 12, repr.plot.height = 6)
+
+dataset_c %>%
+  dplyr::select(Si, Al, Fe) %>%
+  acomp %>%
+  plot(cex=1, pca = TRUE, center = FALSE)
+  isoPortionLines(at=c(0.1, 0.25, 0.5, 0.75, 0.9), col="grey", lty=2)
+
+dataset_c %>%
+  dplyr::select(Si, Al, Fe) %>%
+  acomp %>%
+  plot(cex=1, pca = TRUE, center = TRUE)
+  isoPortionLines(at=c(0.1, 0.25, 0.5, 0.75, 0.9), col="grey", lty=2)
+```
+
+
+```R
+source("./utils/functions/create_quick_map.R")
+options(repr.plot.width = 15, repr.plot.height = 10)
+
+quick_pca_biplot(pca_result, group_data = dataset$Type, x = "PC1", y = "PC2", arrow_scale_factor = "auto", 
+                 add_labels = FALSE)
+
+create_quick_map(dataset, structures, group_data = "Type")
+```
+
+
+```R
+par(bg = "white")
+options(repr.plot.width = 12, repr.plot.height = 6)
+
+nb <- NbClust(as.matrix(ilr(dataset_acomp)),
+              distance = "euclidean", 
+              method = "kmeans", 
+              min.nc = 4) 
+cat(nb$bg)
+Cluster <- factor(nb$Best.partition)
+
+```
+
+
+```R
+options(repr.plot.width = 20, repr.plot.height = 15)
+dataset$Cluster <- Cluster
+quick_pca_biplot(pca_result, group_data = dataset$Cluster, x = "PC1", y = "PC2", arrow_scale_factor = "auto", 
+                 add_labels = TRUE)
+create_quick_map(dataset, structures, group_data = "Cluster")
+```

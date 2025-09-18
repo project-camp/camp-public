@@ -1,0 +1,144 @@
+```R
+set.seed(999)
+options(scipen = 9)
+options(warn = -1) 
+source("./environment/libraries.R")
+knitr::opts_chunk$set(fig.height = 12, fig.width = 18, fig.dpi = 300)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+
+```R
+name <- "Kenya_E1"
+dataset <- read.csv(paste0("./test/", name, "_processed.csv"))
+dataset_c <- data.frame(dataset[7:ncol(dataset)], row.names = dataset$Serial)
+proj_coord <- data.frame("Easting" = dataset$Easting, "Northing" = dataset$Northing)
+xy_coord <- data.frame("Longitude" = dataset$Longitude, "Latitude" = dataset$Latitude)
+
+dataset_c_closed <- cbind(dataset_c, "Res" = 100 - rowSums(dataset_c)) 
+head(dataset_c_closed)
+
+dataset_spdf <- cbind(proj_coord, dataset_c_closed)
+rownames(dataset_spdf) <- rownames(dataset_c)
+
+structures_geojson_path <- file.path("./data/", paste0(name, "_topo_lines.geojson"))
+structures <- st_read(structures_geojson_path, quiet = TRUE)
+structures_utm <- st_transform(structures, crs = 32735) # Transform to UTM Zone 35S (WGS84)
+
+```
+
+
+```R
+source("./utils/functions/create_quick_map.R")
+options(repr.plot.width = 10, repr.plot.height = 10)
+
+dbscan_result <- dbscan(dataset_spdf[, c("Easting", "Northing")], 
+                        eps = 10, # Maximum distance between two points to be considered neighbors,
+                        minPts = 2) # Minimum number of points required to form a dense region
+
+Area <- factor(dbscan_result$cluster)
+dataset$Area <- Area 
+
+create_quick_map(dataset, structures, group_data = "Area")
+
+```
+
+
+```R
+dataset_spdf$Area <- Area 
+dataset_spdf <- dataset_spdf[dataset_spdf$Area == 2, ]
+
+# Create SpatialPointsDataFrames (compositional, ilr, clr)
+spdf_comp <- SpatialPointsDataFrame(coords = dataset_spdf[, c("Easting", "Northing")], 
+                                    data = dataset_spdf[, -c(1, 2, ncol(dataset_spdf))], 
+                                    proj4string = CRS("+proj=utm +zone=37 +north +datum=WGS84"))
+spdf_ilr <- SpatialPointsDataFrame(coords = dataset_spdf[, c("Easting", "Northing")], 
+                                   data = as.data.frame(ilr(dataset_spdf[, -c(1, 2, ncol(dataset_spdf))])), 
+                                   proj4string = CRS("+proj=utm +zone=37 +north +datum=WGS84")) 
+spdf_clr <- SpatialPointsDataFrame(coords = dataset_spdf[, c("Easting", "Northing")], 
+                                   data = as.data.frame(clr(dataset_spdf[, -c(1, 2, ncol(dataset_spdf))])),  
+                                   proj4string = CRS("+proj=utm +zone=37 +north +datum=WGS84")) 
+
+```
+
+
+```R
+par(bg = "white")
+options(repr.plot.width = 20, repr.plot.height = 15)
+pairsmap(data = spdf_clr@data, loc = spdf_clr@coords)
+```
+
+
+```R
+par(bg = "white")
+source("./utils/functions/create_grid_from_spdf.R")
+source("./utils/functions/idw_compositional.R")
+grid <- create_grid_from_spdf(spdf_ilr, resolution = 0.2, buffer = 2, convex_hull = FALSE)
+
+# Perform IDW interpolation with compositional data
+idw_compositional(spdf_ilr, orig = dataset_c_closed, grid = grid,
+                  idp = 2, maxdist = 5, focal_window = 1,
+                  plot_idw = TRUE, plot_ncol = 3)
+```
+
+
+```R
+par(bg = "white")
+options(repr.plot.width = 20, repr.plot.height = 15)
+swath(acomp(spdf_comp@data), spdf_comp@coords[,"Easting"], col = 8, xlab = "Easting", commonScale = FALSE)
+swath(acomp(spdf_comp@data), spdf_comp@coords[,"Northing"], col = 8, xlab = "Northing", commonScale = FALSE)
+```
+
+
+```R
+par(bg = "white", mfrow = c(2, 1))
+options(repr.plot.width = 15, repr.plot.height = 12)
+source("./utils/functions/lag_distance_from_spdf.R")
+source("./utils/functions/site_diagonal_from_spdf.R")
+source("./utils/functions/create_gstat_from_spdf.R")
+
+
+g <- create_gstat_from_spdf(spdf_clr, method = "universal") # Compute omnidirectional variograms
+lag_dist <- lag_distance_from_spdf(spdf_clr) # Calculate the lag distance for variogram width
+site_diag <- site_diagonal_from_spdf(spdf_clr) # Calculate site diagonal for variogram cutoff
+
+v_omni <- variogram(g, 
+               width = lag_dist / 2, cutoff = site_diag / 3, 
+               cross = FALSE) 
+plot(v_omni, type = "p")
+```
+
+
+```R
+par(bg = "white")
+options(repr.plot.width = 18, repr.plot.height = 12)
+source("./utils/functions/quick_anis_variogram.R")
+
+
+g <- create_gstat_from_spdf(spdf_clr, method = "universal") # Create gstat object using CLR-transformed data
+
+# Compute anisotropic variograms (alpha indicates the direction: 0 is NS, 45 is NE-SW, 90 is EW, 135 is NW-SE)
+v_dir <- variogram(g, 
+                   width = lag_dist / 2, cutoff = site_diag / 3,
+                   alpha = c(0, 45, 90, 135), 
+                   tol.hor = 22.5, 
+                   cross = FALSE) 
+
+quick_anis_variogram(v_dir, directions = c(0, 90), direction_labels = c("NS", "EW"))
+quick_anis_variogram(v_dir, directions = c(45, 135), direction_labels = c("NE-SW", "NW-SE"))
+
+```
+
+
+```R
+par(bg = "white")
+options(repr.plot.width = 15, repr.plot.height = 15)
+
+# Create anisotropy plot with minimal parameters
+vario <- logratioVariogram(data = acomp(spdf_comp@data), 
+                          loc = spdf_comp@coords, 
+                          maxdist = site_diag / 6,  
+                          azimuth = c(0, 45, 90, 135), 
+                          azimuth.tol = 45)  
+image(vario)
+```

@@ -1,0 +1,173 @@
+```R
+set.seed(999)
+options(scipen = 9)
+options(warn = -1) 
+source("./environment/libraries.R")
+knitr::opts_chunk$set(fig.height = 12, fig.width = 18, fig.dpi = 300)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+
+```R
+name <- "Kenya_E1"
+dataset <- read.csv(paste0("./test/", name, "_processed.csv"))
+dataset_c <- data.frame(dataset[7:ncol(dataset)], row.names = dataset$Serial)
+proj_coord <- data.frame("Easting" = dataset$Easting, "Northing" = dataset$Northing)
+xy_coord <- data.frame("Longitude" = dataset$Longitude, "Latitude" = dataset$Latitude)
+
+dataset_c_closed <- cbind(dataset_c, "Res" = 100 - rowSums(dataset_c)) 
+head(dataset_c_closed)
+
+dataset_spdf <- cbind(proj_coord, dataset_c_closed)
+rownames(dataset_spdf) <- rownames(dataset_c)
+
+structures_geojson_path <- file.path("./data", paste0(name, "_topo_lines.geojson"))
+structures <- st_read(structures_geojson_path, quiet = TRUE)
+structures_utm <- st_transform(structures, crs = 32637) # Transform to UTM Zone 35S (WGS84)
+
+
+output_dirs <- "./test/ck/"
+if (!dir.exists(output_dirs)) {
+  dir.create(output_dirs, recursive = TRUE)
+}
+```
+
+
+```R
+source("./utils/functions/create_quick_map.R")
+options(repr.plot.width = 10, repr.plot.height = 10)
+
+dbscan_result <- dbscan(dataset_spdf[, c("Easting", "Northing")], eps = 10, minPts = 5)
+Area <- factor(dbscan_result$cluster)
+dataset$Area <- Area
+create_quick_map(dataset, structures, group_data = "Area")
+
+dataset_spdf$Area <- Area
+dataset_spdf <- dataset_spdf[dataset_spdf$Area == 2, ]
+```
+
+
+```R
+create_spatial_objects <- function(data_spdf, transformation = "none") {
+  coords <- data_spdf[, c("Easting", "Northing")]
+  crs_string <- "+proj=utm +zone=37 +north +datum=WGS84"
+  
+  if (transformation == "ilr") {
+    spatial_data <- as.data.frame(ilr(data_spdf[, -c(1, 2, ncol(data_spdf))]))
+  } else if (transformation == "clr") {
+    spatial_data <- as.data.frame(clr(data_spdf[, -c(1, 2, ncol(data_spdf))]))
+  } else {
+    spatial_data <- data_spdf[, -c(1, 2, ncol(data_spdf))]
+  }
+  
+  return(SpatialPointsDataFrame(coords = coords, data = spatial_data, 
+                               proj4string = CRS(crs_string)))
+}
+
+spdf_comp <- create_spatial_objects(dataset_spdf, "none")
+spdf_ilr <- create_spatial_objects(dataset_spdf, "ilr")
+spdf_clr <- create_spatial_objects(dataset_spdf, "clr")
+
+source("./utils/functions/lag_distance_from_spdf.R")
+source("./utils/functions/site_diagonal_from_spdf.R")
+lag_dist <- lag_distance_from_spdf(spdf_ilr)
+site_diag <- site_diagonal_from_spdf(spdf_ilr)
+```
+
+
+```R
+source("./utils/functions/geostatistical_analysis.R")
+source("./utils/functions/validate_geostatistical_predictions.R")
+```
+
+
+```R
+results_ilr_omni <- geostatistical_analysis(spdf_ilr, "ILR_Omnidirectional", lag_dist, site_diag, directional = FALSE)
+```
+
+
+```R
+validate_predictions(spdf_ilr, results_ilr_omni$ck, results_ilr_omni$g)
+```
+
+
+```R
+results_ilr_dir <- geostatistical_analysis(spdf_ilr, "ILR_Directional", lag_dist, site_diag, directional = FALSE)
+```
+
+
+```R
+validate_predictions(spdf_ilr, results_ilr_dir$ck, results_ilr_dir$g)
+```
+
+
+```R
+par(bg = "white")
+options(repr.plot.width = 15, repr.plot.height = 12)
+
+# Compute MAF analysis
+g_temp <- create_gstat_from_spdf(spdf_ilr, method = "ordinary")
+v_omni <- variogram(g_temp, width = lag_dist / 2, cutoff = site_diag / 3, cross = TRUE)
+maf_result <- Maf(spdf_ilr@data, vg = v_omni)
+
+source("./utils/functions/quick_pca_screeplot.R")
+quick_pca_screeplot(maf_result)
+maf_dataset <- maf_result$scores[, 1:9]
+spdf_maf <- SpatialPointsDataFrame(coords = dataset_spdf[, c("Easting", "Northing")], 
+                                  data = as.data.frame(maf_dataset),
+                                  proj4string = CRS("+proj=utm +zone=37 +north +datum=WGS84"))
+
+results_maf_omni <- geostatistical_analysis(spdf_maf, "MAF_Omnidirectional", lag_dist, site_diag,
+                                           directional = FALSE, maf_result = maf_result, 
+                                           resolution = 2)
+
+```
+
+
+```R
+validate_predictions(spdf_maf, results_maf_omni$ck, results_maf_omni$g)
+```
+
+
+```R
+g_temp2 <- create_gstat_from_spdf(spdf_ilr, method = "ordinary")
+v_dir <- variogram(g_temp2, width = lag_dist / 2, cutoff = site_diag / 3,
+                  alpha = c(0, 45, 90, 135), tol.hor = 22.5, cross = FALSE)
+
+maf_result2 <- Maf(spdf_ilr@data, vg = v_dir)
+quick_pca_screeplot(maf_result2)
+maf_dataset2 <- maf_result2$scores[, 1:10]
+spdf_maf2 <- SpatialPointsDataFrame(coords = dataset_spdf[, c("Easting", "Northing")], 
+                                   data = as.data.frame(maf_dataset2),
+                                   proj4string = CRS("+proj=utm +zone=37 +north +datum=WGS84"))
+
+results_maf_dir <- geostatistical_analysis(spdf_maf2, "MAF_Directional", lag_dist, site_diag,
+                                          directional = TRUE, maf_result = maf_result2, 
+                                          resolution = 2)
+
+```
+
+
+```R
+validate_predictions(spdf_maf2, results_maf_dir$ck, results_maf_dir$g)
+```
+
+
+```R
+source("./utils/functions/create_ck_maplist_from_list.R")
+
+ck_files <- list.files("./test/ck/", full.names = TRUE, pattern = paste0(name, ".*\\.rds$"), recursive = TRUE)
+ck_list <- lapply(ck_files, readRDS)
+
+if (length(ck_list) > 0) {
+  cat("Available cokriging results:", length(ck_list), "\n")
+  cat("Files:", basename(ck_files), "\n")
+  
+  if (length(ck_list) > 1) {
+    cat("Multiple methods completed. Individual results saved in method subdirectories\n")
+  }
+} else {
+  cat("No cokriging results found\n")
+}
+cat("Geostatistical workflow completed successfully!\n")
+```
