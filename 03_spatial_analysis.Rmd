@@ -3,7 +3,7 @@ set.seed(999)
 options(scipen = 9)
 options(warn = -1) 
 source("./environment/libraries.R")
-knitr::opts_chunk$set(fig.height = 12, fig.width = 18, fig.dpi = 300)
+knitr::opts_chunk$set(fig.height = 15, fig.width = 12, fig.dpi = 300)
 knitr::opts_chunk$set(warning = FALSE)
 ```
 

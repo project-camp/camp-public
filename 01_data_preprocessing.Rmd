@@ -3,7 +3,7 @@ set.seed(999)
 options(scipen = 9)
 options(warn = -1) 
 source("./environment/libraries.R")
-knitr::opts_chunk$set(fig.height = 12, fig.width = 9, fig.dpi = 300)
+knitr::opts_chunk$set(fig.height = 15, fig.width = 12, fig.dpi = 300)
 knitr::opts_chunk$set(warning = FALSE)
 ```
 
@@ -149,14 +149,14 @@ source("./utils/functions/range_analysis_check.R")
 source("./utils/functions/element_error_check.R")
 
 cat("=== RUNNING NA CHECK ===")
-head(na_check(dataset))
+na_check(dataset)
 
 cat("=== RUNNING RANGE ANALYSIS CHECK ===")
 analysis_ranges <- fromJSON("./utils/analysis_ranges.json")
-head(range_analysis_check(dataset, analysis_ranges, method = "oxide"))
+range_analysis_check(dataset, analysis_ranges, method = "oxide")
 
 cat("=== RUNNING ELEMENT ERROR CHECK ===")
-head(element_error_check(dataset))
+element_error_check(dataset)
 
 ```
 
